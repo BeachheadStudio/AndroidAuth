@@ -1,0 +1,2 @@
+configurations.create("default")
+artifacts.add("default", file('play-services-base-8.4.0.aar'))

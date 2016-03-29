@@ -1,0 +1,2 @@
+configurations.create("default")
+artifacts.add("default", file('play-services-auth-8.4.0.aar'))
