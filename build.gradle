@@ -32,6 +32,10 @@ task clean(type: Delete) {
     delete 'Assets/Plugins/Android/GooglePlay/AndroidManifest.xml'
     delete 'Assets/Plugins/Android/GooglePlay/project.properties'
 
+    delete fileTree('Assets/Plugins/Android/GooglePlay/res') {
+        include "**/*"
+    }
+
     println 'clean: done'
 }
 
@@ -68,6 +72,13 @@ task makeUnityPlugin(dependsOn: ':authservice:build') {
                 include 'AndroidManifest.xml'
             }
             into 'Assets/Plugins/Android/GooglePlay'
+        }
+
+        copy {
+            from('authservice/src/main/res') {
+                include '**/*'
+            }
+            into 'Assets/Plugins/Android/GooglePlay/res'
         }
 
         println 'Done'
