@@ -26,6 +26,12 @@ android {
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     testCompile 'junit:junit:4.12'
+    compile project(':play-services-auth-8.4.0')
+    compile project(':play-services-base-8.4.0')
+    compile project(':play-services-basement-8.4.0')
+    compile project(':play-services-games-8.4.0')
+    compile project(':play-services-plus-8.4.0')
+    compile project(':appcompat-v7-23.2.1')
 }
 
 // for aar build, whenever that starts working in Unity

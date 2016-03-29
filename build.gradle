@@ -21,20 +21,12 @@ allprojects {
 task clean(type: Delete) {
     delete rootProject.buildDir
 
-    delete fileTree('Assets/Plugins/Android/GooglePlay/libs') {
-        include "**/*.jar"
-    }
-
-    delete fileTree('authservice/build/outputs') {
-        include "**/*.jar"
+    delete fileTree('Assets/Plugins/Android/GooglePlay') {
+        include "**/*.aar"
     }
 
     delete 'Assets/Plugins/Android/GooglePlay/AndroidManifest.xml'
     delete 'Assets/Plugins/Android/GooglePlay/project.properties'
-
-    delete fileTree('Assets/Plugins/Android/GooglePlay/res') {
-        include "**/*"
-    }
 
     println 'clean: done'
 }
@@ -45,19 +37,28 @@ task makeUnityPlugin(dependsOn: ':authservice:build') {
         println 'Building Unity plugin'
 
         copy {
-            from('authservice/build/intermediates/bundles/release') {
-                include 'classes.jar'
-                rename 'classes.jar', 'googleplayauth.jar'
-            }
-            into 'Assets/Plugins/Android/GooglePlay/libs'
+            from 'play-services-auth-8.4.0/play-services-auth-8.4.0.aar'
+            into 'Assets/Plugins/Android'
         }
-
         copy {
-            from('authservice/libs') {
-                include '*.jar'
-                exclude 'classes.jar'
-            }
-            into 'Assets/Plugins/Android/GooglePlay/libs'
+            from 'play-services-base-8.4.0/play-services-base-8.4.0.aar'
+            into 'Assets/Plugins/Android'
+        }
+        copy {
+            from 'play-services-basement-8.4.0/play-services-basement-8.4.0.aar'
+            into 'Assets/Plugins/Android'
+        }
+        copy {
+            from 'play-services-games-8.4.0/play-services-basement-8.4.0.aar'
+            into 'Assets/Plugins/Android'
+        }
+        copy {
+            from 'play-services-plus-8.4.0/play-services-plus-8.4.0.aar'
+            into 'Assets/Plugins/Android'
+        }
+        copy {
+            from 'appcompat-v7-23.2.1/appcompat-v7-23.2.1.aar'
+            into 'Assets/Plugins/Android'
         }
 
         copy {
@@ -75,10 +76,8 @@ task makeUnityPlugin(dependsOn: ':authservice:build') {
         }
 
         copy {
-            from('authservice/src/main/res') {
-                include '**/*'
-            }
-            into 'Assets/Plugins/Android/GooglePlay/res'
+            from('authservice/build/outputs/aar/authservice-release.aar')
+            into 'Assets/Plugins/Android/GooglePlay'
         }
 
         println 'Done'
