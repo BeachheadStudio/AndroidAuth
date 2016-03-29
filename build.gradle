@@ -1,0 +1,75 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:1.5.0'
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+allprojects {
+    repositories {
+        jcenter()
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+
+    delete fileTree('Assets/Plugins/Android/GooglePlay/libs') {
+        include "**/*.jar"
+    }
+
+    delete fileTree('authservice/build/outputs') {
+        include "**/*.jar"
+    }
+
+    delete 'Assets/Plugins/Android/GooglePlay/AndroidManifest.xml'
+    delete 'Assets/Plugins/Android/GooglePlay/project.properties'
+
+    println 'clean: done'
+}
+
+//noinspection GroovyAssignabilityCheck
+task makeUnityPlugin(dependsOn: ':authservice:build') {
+    doLast {
+        println 'Building Unity plugin'
+
+        copy {
+            from('authservice/build/intermediates/bundles/release') {
+                include 'classes.jar'
+                rename 'classes.jar', 'googleplayauth.jar'
+            }
+            into 'Assets/Plugins/Android/GooglePlay/libs'
+        }
+
+        copy {
+            from('authservice/libs') {
+                include '*.jar'
+                exclude 'classes.jar'
+            }
+            into 'Assets/Plugins/Android/GooglePlay/libs'
+        }
+
+        copy {
+            from('authservice/') {
+                include 'project.properties'
+            }
+            into 'Assets/Plugins/Android/GooglePlay'
+        }
+
+        copy {
+            from('authservice/src/main') {
+                include 'AndroidManifest.xml'
+            }
+            into 'Assets/Plugins/Android/GooglePlay'
+        }
+
+        println 'Done'
+    }
+}
