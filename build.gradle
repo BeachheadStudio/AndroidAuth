@@ -60,6 +60,10 @@ task makeUnityPlugin(dependsOn: ':authservice:build') {
             from 'appcompat-v7-23.2.1/appcompat-v7-23.2.1.aar'
             into 'Assets/Plugins/Android'
         }
+        copy {
+            from 'play-services-games-8.4.0/play-services-games-8.4.0.aar'
+            into 'Assets/Plugins/Android'
+        }
 
         copy {
             from('authservice/') {
@@ -75,9 +79,24 @@ task makeUnityPlugin(dependsOn: ':authservice:build') {
             into 'Assets/Plugins/Android/GooglePlay'
         }
 
+//        copy {
+//            from('authservice/build/outputs/aar/authservice-release.aar')
+//            into 'Assets/Plugins/Android/GooglePlay'
+//        }
+
         copy {
-            from('authservice/build/outputs/aar/authservice-release.aar')
-            into 'Assets/Plugins/Android/GooglePlay'
+            from('authservice/build/intermediates/bundles/release') {
+                include 'classes.jar'
+                rename 'classes.jar', 'googleplayauth.jar'
+            }
+            into 'Assets/Plugins/Android/GooglePlay/libs'
+        }
+
+        copy {
+            from('android-support-v4') {
+                include '**/*.jar'
+            }
+            into 'Assets/Plugins/Android/GooglePlay/libs'
         }
 
         println 'Done'

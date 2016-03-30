@@ -14,12 +14,8 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            consumerProguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
-    }
-
-    lintOptions {
-        disable 'MissingTranslation'
-        disable 'DuplicateIds'
     }
 }
 
@@ -32,6 +28,7 @@ dependencies {
     compile project(':play-services-games-8.4.0')
     compile project(':play-services-plus-8.4.0')
     compile project(':appcompat-v7-23.2.1')
+    compile project(':android-support-v4')
 }
 
 // for aar build, whenever that starts working in Unity
