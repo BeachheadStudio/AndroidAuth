@@ -23,7 +23,6 @@ import java.io.IOException;
  */
 public class GetOAuthTokenTask extends AsyncTask<String, Void, String> {
     private static final String TAG = GetOAuthTokenTask.class.getSimpleName();
-    public static final String SCOPE = "oauth2:https://www.googleapis.com/auth/userinfo.profile";
 
     private AuthService authService;
     private Activity activity;
@@ -72,8 +71,10 @@ public class GetOAuthTokenTask extends AsyncTask<String, Void, String> {
     protected String fetchToken() throws IOException {
         try {
             Log.d(TAG, "fetchToken getting token");
-            return GoogleAuthUtil.getToken(activity.getApplicationContext(),
-                    new Account(email, "com.google"), scope);
+
+            Account account = new Account(email, GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE);
+            return GoogleAuthUtil.getToken(activity.getApplicationContext(), account, scope);
+
         } catch (final UserRecoverableAuthException e) {
             Log.d(TAG, "fetchToken exception", e);
 

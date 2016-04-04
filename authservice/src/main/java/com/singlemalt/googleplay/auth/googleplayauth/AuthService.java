@@ -11,10 +11,17 @@ import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.games.Games;
 import com.google.android.gms.games.Player;
+import com.google.gson.Gson;
 import com.singlemalt.googleplay.auth.googleplayauth.tasks.GetOAuthTokenTask;
 import com.unity3d.player.UnityPlayer;
 import com.google.android.gms.common.ConnectionResult;
 
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.concurrent.Executors;
 
 /**
@@ -96,6 +103,79 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
         }
     }
 
+    private class ServerAuthRunner implements Runnable {
+        private class RequestPojo {
+            public String playerId;
+            public String network;
+            public String playerName;
+            public String token;
+
+            public RequestPojo(String playerId, String network, String playerName, String token) {
+                this.playerId = playerId;
+                this.network = network;
+                this.playerName = playerName;
+                this.token = token;
+            }
+        }
+
+        private class ServerPlayer {
+            public String id;
+            public String token;
+        }
+
+        public ServerAuthRunner() {
+        }
+
+        @Override
+        public void run() {
+            Log.d(TAG, "ServerAuthRunner starting...");
+            HttpURLConnection conn = null;
+
+            try {
+                RequestPojo data = new RequestPojo(getPlayerId(), "GOOGLE", getPlayerName(), getOauthToken());
+                String postString = new Gson().toJson(data);
+                byte[] postData = postString.getBytes(Charset.defaultCharset());
+                int postDataLength = postData.length;
+
+                URL url = new URL(serverUrl);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setDoOutput(true);
+                conn.setInstanceFollowRedirects(false);
+                conn.setRequestMethod("POST");
+                conn.setConnectTimeout(20000);
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                conn.setRequestProperty("Content-Length", Integer.toString(postDataLength));
+                conn.setUseCaches(false);
+
+                DataOutputStream wr = new DataOutputStream( conn.getOutputStream());
+                wr.write( postData );
+                wr.close();
+
+                if(conn.getResponseCode() == 200) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    ServerPlayer player = new Gson().fromJson(reader, ServerPlayer.class);
+                    serverPlayerId = player.id;
+                    sessionToken = player.token;
+                    serverAuthStatus = Status.Success;
+                } else {
+                    Log.e(TAG, "Server sent back error code: "+conn.getResponseCode());
+                    failureError = "Server auth failed";
+                    serverAuthStatus = Status.Failure;
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Couldn't make a HTTP request", e);
+                failureError = e.getLocalizedMessage();
+                serverAuthStatus = Status.Failure;
+            } finally {
+                if(conn != null) {
+                    conn.disconnect();
+                }
+            }
+
+            checkStatus();
+        }
+    }
+
     // connection tracker
     public static final int REQUEST_CODE_PICK_ACCOUNT = 1000;
     public static final int REQUEST_RESOLVE_ERROR = 1001;
@@ -107,19 +187,24 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
     // enums are a pain in the JNI, so using a string
     private Status loginStatus;
     private Status oauthStatus;
+    private Status serverAuthStatus;
 
     // player fields
     private Player player;
     private String playerId = null;
-    private String accountName;
     private String playerName;
     private String oauthToken;
     private String failureError;
+    private String serverPlayerId;
+    private String sessionToken;
+    private String clientId;
+    private String serverUrl;
     private boolean anonymous = true;
 
     private AuthService() {
         loginStatus = Status.Working;
         oauthStatus = Status.Working;
+        serverAuthStatus = Status.Working;
     }
 
     // implement callbacks
@@ -127,15 +212,16 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
     public void onConnected(Bundle bundle) {
         Log.d(TAG, "onConnected");
 
-        accountName = Games.getCurrentAccountName(googleApiClient);
+        String accountName = Games.getCurrentAccountName(googleApiClient);
         player = Games.Players.getCurrentPlayer(googleApiClient);
 
         setPlayerId(player.getPlayerId());
         anonymous = false;
         playerName = player.getDisplayName();
 
-        new GetOAuthTokenTask(this, UnityPlayer.currentActivity, accountName, GetOAuthTokenTask.SCOPE)
-                .execute();
+        String scope = String.format("audience:server:client_id:%s", clientId);
+
+        new GetOAuthTokenTask(this, UnityPlayer.currentActivity, accountName, scope).execute();
 
         loginStatus = Status.Success;
         checkStatus();
@@ -157,14 +243,18 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
         }
 
         failureError = connectionResult.toString();
+        Log.e(TAG, "connectionResult " + failureError);
 
         if(connectionResult.hasResolution()) {
             try {
                 Log.d(TAG, "onConnectionFailed resolving");
                 resolvingError = true;
                 connectionResult.startResolutionForResult(UnityPlayer.currentActivity, REQUEST_RESOLVE_ERROR);
+
+                googleApiClient.connect();
             } catch (IntentSender.SendIntentException e) {
                 Log.e(TAG, "onConnectionFailed: ", e);
+
                 googleApiClient.connect();
             }
         } else {
@@ -175,8 +265,11 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
         }
     }
 
-    public void init() {
+    public void init(String clientId, String serverUrl) {
         Log.d(TAG, "Starting");
+
+        this.clientId = clientId;
+        this.serverUrl = serverUrl;
 
         Executors.newSingleThreadExecutor().execute(new AuthRunner(this, true));
     }
@@ -184,17 +277,11 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
     public void onPause() {
         Log.d(TAG, "onPause");
 
-        if(googleApiClient != null) {
-//            googleApiClient.disconnect();
-        }
     }
 
     public void onResume() {
         Log.d(TAG, "onResume");
 
-        if(googleApiClient == null) {
-//            Executors.newSingleThreadExecutor().execute(new AuthRunner(this, true));
-        }
     }
 
     public void onCancel(Activity activity) {
@@ -237,11 +324,21 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
         oauthToken = token;
         if(oauthToken != null && !oauthToken.isEmpty() && !oauthToken.equals("null")) {
             oauthStatus = Status.Success;
+
+            Executors.newSingleThreadExecutor().execute(new ServerAuthRunner());
         } else {
             oauthStatus = Status.Failure;
         }
 
         checkStatus();
+    }
+
+    public String getSessionToken() {
+        return sessionToken;
+    }
+
+    public String getServerPlayerId() {
+        return serverPlayerId;
     }
 
     public String getFailureError() {
@@ -253,17 +350,13 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
     }
 
     private void checkStatus() {
-        Log.d(TAG, String.format("checkStatus: loginStatus %s", loginStatus));
-
-        if (loginStatus.equals(Status.Working) || oauthStatus.equals(Status.Working)) {
+        if (loginStatus.equals(Status.Working) || oauthStatus.equals(Status.Working)
+                || serverAuthStatus.equals(Status.Working)) {
             Log.d(TAG, "not ready to update unity");
-        } else if (loginStatus.equals(Status.Success) && oauthStatus.equals(Status.Success)) {
+        } else if (loginStatus.equals(Status.Success) && oauthStatus.equals(Status.Success)
+                && serverAuthStatus.equals(Status.Success)) {
             anonymous = false;
             Log.d(TAG, "login success");
-
-            Log.d(TAG, String.format("accountName: %s playerName: %s playerId: %s oauthToken %s",
-                    accountName, playerName, playerId, oauthToken));
-
             UnityPlayer.UnitySendMessage("Main Camera", "LoginResult", Status.Success.toString());
         } else if (loginStatus.equals(Status.Cancel)) {
             anonymous = true;
@@ -271,7 +364,8 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
 
             Log.d(TAG, "login cancelled");
             UnityPlayer.UnitySendMessage("Main Camera", "LoginResult", Status.Cancel.toString());
-        } else if (loginStatus.equals(Status.Failure) || oauthStatus.equals(Status.Failure)) {
+        } else if (loginStatus.equals(Status.Failure) || oauthStatus.equals(Status.Failure)
+                || serverAuthStatus.equals(Status.Failure)) {
             anonymous = true;
             player = null;
 

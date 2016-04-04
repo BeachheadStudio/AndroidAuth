@@ -79,11 +79,6 @@ task makeUnityPlugin(dependsOn: ':authservice:build') {
             into 'Assets/Plugins/Android/GooglePlay'
         }
 
-//        copy {
-//            from('authservice/build/outputs/aar/authservice-release.aar')
-//            into 'Assets/Plugins/Android/GooglePlay'
-//        }
-
         copy {
             from('authservice/build/intermediates/bundles/release') {
                 include 'classes.jar'
@@ -95,6 +90,14 @@ task makeUnityPlugin(dependsOn: ':authservice:build') {
         copy {
             from('android-support-v4') {
                 include '**/*.jar'
+            }
+            into 'Assets/Plugins/Android/GooglePlay/libs'
+        }
+
+        copy {
+            from('authservice/libs') {
+                include '**/*.jar'
+                exclude '**/classes.jar'
             }
             into 'Assets/Plugins/Android/GooglePlay/libs'
         }
