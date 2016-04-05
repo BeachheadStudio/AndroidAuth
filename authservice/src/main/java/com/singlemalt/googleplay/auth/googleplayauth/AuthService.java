@@ -106,12 +106,14 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
     private class ServerAuthRunner implements Runnable {
         private class RequestPojo {
             public String playerId;
+            public String serverPlayerId;
             public String network;
             public String playerName;
             public String token;
 
-            public RequestPojo(String playerId, String network, String playerName, String token) {
+            public RequestPojo(String playerId, String serverPlayerId, String network, String playerName, String token) {
                 this.playerId = playerId;
+                this.serverPlayerId = serverPlayerId;
                 this.network = network;
                 this.playerName = playerName;
                 this.token = token;
@@ -132,7 +134,7 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
             HttpURLConnection conn = null;
 
             try {
-                RequestPojo data = new RequestPojo(getPlayerId(), "GOOGLE", getPlayerName(), getOauthToken());
+                RequestPojo data = new RequestPojo(getPlayerId(), getServerPlayerId(), "GOOGLE", getPlayerName(), getOauthToken());
                 String postString = new Gson().toJson(data);
                 byte[] postData = postString.getBytes(Charset.defaultCharset());
                 int postDataLength = postData.length;
@@ -265,11 +267,12 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
         }
     }
 
-    public void init(String clientId, String serverUrl) {
+    public void init(String clientId, String serverUrl, String playerId) {
         Log.d(TAG, "Starting");
 
         this.clientId = clientId;
         this.serverUrl = serverUrl;
+        this.serverPlayerId = playerId;
 
         Executors.newSingleThreadExecutor().execute(new AuthRunner(this, true));
     }
@@ -345,7 +348,7 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
         return failureError;
     }
 
-    public boolean isAnonymous() {
+    public boolean IsAnonymous() {
         return anonymous;
     }
 
