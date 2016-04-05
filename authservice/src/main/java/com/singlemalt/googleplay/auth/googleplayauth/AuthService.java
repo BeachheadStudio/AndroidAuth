@@ -308,7 +308,7 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
         if(this.playerId != null) {
             if(!this.playerId.equals(playerId)) {
                 this.playerId = playerId;
-                UnityPlayer.UnitySendMessage("Main Camera", "PlayerChange", "true");
+                UnityPlayer.UnitySendMessage("AuthGameObject", "PlayerChange", "true");
             }
         } else {
             this.playerId = playerId;
@@ -360,20 +360,20 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
                 && serverAuthStatus.equals(Status.Success)) {
             anonymous = false;
             Log.d(TAG, "login success");
-            UnityPlayer.UnitySendMessage("Main Camera", "LoginResult", Status.Success.toString());
+            UnityPlayer.UnitySendMessage("AuthGameObject", "LoginResult", Status.Success.toString());
         } else if (loginStatus.equals(Status.Cancel)) {
             anonymous = true;
             player = null;
 
             Log.d(TAG, "login cancelled");
-            UnityPlayer.UnitySendMessage("Main Camera", "LoginResult", Status.Cancel.toString());
+            UnityPlayer.UnitySendMessage("AuthGameObject", "LoginResult", Status.Cancel.toString());
         } else if (loginStatus.equals(Status.Failure) || oauthStatus.equals(Status.Failure)
                 || serverAuthStatus.equals(Status.Failure)) {
             anonymous = true;
             player = null;
 
             Log.e(TAG, "login failed");
-            UnityPlayer.UnitySendMessage("Main Camera", "LoginResult", Status.Failure.toString());
+            UnityPlayer.UnitySendMessage("AuthGameObject", "LoginResult", Status.Failure.toString());
         }
     }
 }
