@@ -19,9 +19,12 @@ import com.google.android.gms.common.ConnectionResult;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.InputStreamReader;
+import java.net.HttpCookie;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 
 /**
@@ -121,11 +124,15 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
         }
 
         private class ServerPlayer {
-            public String id;
-            public String token;
+            public String realPlayerID;
+            public String playerName;
+            public boolean isAnonymous;
         }
 
-        public ServerAuthRunner() {
+        private AuthService authService;
+
+        public ServerAuthRunner(AuthService authService) {
+            this.authService = authService;
         }
 
         @Override
@@ -156,8 +163,23 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
                 if(conn.getResponseCode() == 200) {
                     BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                     ServerPlayer player = new Gson().fromJson(reader, ServerPlayer.class);
-                    serverPlayerId = player.id;
-                    sessionToken = player.token;
+                    serverPlayerId = player.realPlayerID;
+                    playerName = player.playerName;
+                    anonymous = player.isAnonymous;
+
+                    Map<String, List<String>> headerFields = conn.getHeaderFields();
+                    List<String> cookiesHeader = headerFields.get("Set-Cookie");
+
+                    if(cookiesHeader.size() > 0) {
+                        Log.d(TAG, "Getting session cookie");
+                        for(String cookie : cookiesHeader) {
+                            List<HttpCookie> httpCookies = HttpCookie.parse(cookie);
+
+                            authService.SetSessionToken(httpCookies.get(0).getValue());
+                            Log.d(TAG, "Cookie found: "+authService.getSessionToken());
+                        }
+                    }
+
                     serverAuthStatus = Status.Success;
                 } else {
                     Log.e(TAG, "Server sent back error code: "+conn.getResponseCode());
@@ -328,12 +350,16 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
         if(oauthToken != null && !oauthToken.isEmpty() && !oauthToken.equals("null")) {
             oauthStatus = Status.Success;
 
-            Executors.newSingleThreadExecutor().execute(new ServerAuthRunner());
+            Executors.newSingleThreadExecutor().execute(new ServerAuthRunner(this));
         } else {
             oauthStatus = Status.Failure;
         }
 
         checkStatus();
+    }
+
+    public void SetSessionToken(String sessionToken) {
+        this.sessionToken = sessionToken;
     }
 
     public String getSessionToken() {
