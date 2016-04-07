@@ -129,11 +129,7 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
             public boolean isAnonymous;
         }
 
-        private AuthService authService;
-
-        public ServerAuthRunner(AuthService authService) {
-            this.authService = authService;
-        }
+        public ServerAuthRunner() { }
 
         @Override
         public void run() {
@@ -175,8 +171,8 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
                         for(String cookie : cookiesHeader) {
                             List<HttpCookie> httpCookies = HttpCookie.parse(cookie);
 
-                            authService.SetSessionToken(httpCookies.get(0).getValue());
-                            Log.d(TAG, "Cookie found: "+authService.getSessionToken());
+                            AuthService.getInstance().SetSessionToken(httpCookies.get(0).getValue());
+                            Log.d(TAG, "Cookie found: "+AuthService.getInstance().getSessionToken());
                         }
                     }
 
@@ -220,7 +216,7 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
     private String oauthToken;
     private String failureError;
     private String serverPlayerId;
-    private String sessionToken;
+    private String sessionToken = "";
     private String clientId;
     private String serverUrl;
     private boolean anonymous = true;
@@ -350,7 +346,7 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
         if(oauthToken != null && !oauthToken.isEmpty() && !oauthToken.equals("null")) {
             oauthStatus = Status.Success;
 
-            Executors.newSingleThreadExecutor().execute(new ServerAuthRunner(this));
+            Executors.newSingleThreadExecutor().execute(new ServerAuthRunner());
         } else {
             oauthStatus = Status.Failure;
         }
