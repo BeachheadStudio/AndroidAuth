@@ -27,11 +27,7 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * Created by kmiller on 3/28/16.
@@ -205,6 +201,7 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
     // connection tracker
     public static final int REQUEST_CODE_PICK_ACCOUNT = 1000;
     public static final int REQUEST_RESOLVE_ERROR = 1001;
+    public static final int REQUEST_ACHIEVEMENTS = 1002;
     private boolean resolvingError = false;
 
     // Google API client
@@ -399,6 +396,13 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
         authParams.put("token", oauthToken);
 
         return new Gson().toJson(authParams);
+    }
+
+    public void awardAchievement(String achievementId) {
+        Games.Achievements.unlock(googleApiClient, achievementId);
+
+        UnityPlayer.currentActivity.startActivityForResult(
+                Games.Achievements.getAchievementsIntent(googleApiClient), REQUEST_ACHIEVEMENTS);
     }
 
     private void checkStatus() {
