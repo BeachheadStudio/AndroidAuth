@@ -68,7 +68,7 @@ public class GetOAuthTokenTask extends AsyncTask<String, Void, String> {
      * Gets an authentication token from Google and handles any
      * GoogleAuthException that may occur.
      */
-    protected String fetchToken() throws IOException {
+    public String fetchToken() throws IOException {
         try {
             Log.d(TAG, "fetchToken getting token");
 

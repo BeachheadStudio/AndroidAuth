@@ -18,14 +18,20 @@ import com.google.android.gms.common.ConnectionResult;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpCookie;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Created by kmiller on 3/28/16.
@@ -107,7 +113,7 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
     }
 
     private class ServerAuthRunner implements Runnable {
-        private class RequestPojo {
+        public class RequestPojo {
             public String playerId;
             public String serverPlayerId;
             public String network;
@@ -219,6 +225,8 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
     private String sessionToken = "";
     private String clientId;
     private String serverUrl;
+    private String scope;
+    private String accountName;
     private boolean anonymous = true;
 
     private AuthService() {
@@ -232,15 +240,14 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
     public void onConnected(Bundle bundle) {
         Log.d(TAG, "onConnected");
 
-        String accountName = Games.getCurrentAccountName(googleApiClient);
+        accountName = Games.getCurrentAccountName(googleApiClient);
         player = Games.Players.getCurrentPlayer(googleApiClient);
 
         setPlayerId(player.getPlayerId());
         anonymous = false;
         playerName = player.getDisplayName();
 
-        String scope = String.format("audience:server:client_id:%s", clientId);
-
+        scope = String.format("audience:server:client_id:%s", clientId);
         new GetOAuthTokenTask(this, UnityPlayer.currentActivity, accountName, scope).execute();
 
         loginStatus = Status.Success;
@@ -372,6 +379,26 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
 
     public boolean IsAnonymous() {
         return anonymous;
+    }
+
+    public String getAuthParams() {
+        scope = String.format("audience:server:client_id:%s", clientId);
+        GetOAuthTokenTask task = new GetOAuthTokenTask(this, UnityPlayer.currentActivity, accountName, scope);
+        try {
+            oauthToken = task.fetchToken();
+        } catch (IOException e) {
+            Log.e(TAG, "Failed getting new oauth token");
+            return null;
+        }
+
+        Map<String, String> authParams = new HashMap<>();
+        authParams.put("playerId", playerId);
+        authParams.put("serverPlayerId", serverPlayerId);
+        authParams.put("network", "GOOGLE");
+        authParams.put("playerName", playerName);
+        authParams.put("token", oauthToken);
+
+        return new Gson().toJson(authParams);
     }
 
     private void checkStatus() {
