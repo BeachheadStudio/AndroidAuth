@@ -7,6 +7,8 @@ import android.content.IntentSender;
 import android.os.Bundle;
 import android.util.Log;
 
+import com.google.android.gms.auth.GoogleAuthException;
+import com.google.android.gms.auth.GoogleAuthUtil;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.games.Games;
@@ -83,11 +85,9 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
 
     private class AuthRunner implements Runnable {
         private AuthService authService;
-        private boolean connectNow;
 
-        public AuthRunner(AuthService authService, boolean connectNow) {
+        public AuthRunner(AuthService authService) {
             this.authService = authService;
-            this.connectNow = connectNow;
         }
 
         @Override
@@ -101,7 +101,29 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
                         .build();
             }
 
-            if(connectNow) {
+            if(googleApiClient.isConnected()) {
+                Log.d(TAG, "googleApiClient isConnected, reconnecting");
+                googleApiClient.disconnect();
+
+                try {
+                    GoogleAuthUtil.clearToken(UnityPlayer.currentActivity.getApplicationContext(), oauthToken);
+                } catch (GoogleAuthException | IOException e) {
+                    Log.e(TAG, "Could not clear token: ", e);
+                    // reset params
+                    player = null;
+                    playerName = null;
+                    oauthToken = null;
+                    failureError = null;
+                    serverPlayerId = null;
+                    sessionToken = "";
+                    accountName = null;
+                    anonymous = true;
+                }
+                Log.d(TAG, "AuthRunner re-connecting...");
+                googleApiClient.connect();
+            } else if(googleApiClient.isConnecting()) {
+                Log.d(TAG, "googleApiClient isConnecting, waiting...");
+            } else {
                 Log.d(TAG, "AuthRunner connecting...");
                 googleApiClient.connect();
             }
@@ -227,6 +249,7 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
     private boolean anonymous = true;
 
     private AuthService() {
+        Log.d(TAG, "constructor");
         loginStatus = Status.Working;
         oauthStatus = Status.Working;
         serverAuthStatus = Status.Working;
@@ -255,7 +278,7 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
     public void onConnectionSuspended(int i) {
         Log.d(TAG, "onConnectionSuspended");
 
-        Executors.newSingleThreadExecutor().execute(new AuthRunner(this, true));
+        Executors.newSingleThreadExecutor().execute(new AuthRunner(this));
     }
 
     @Override
@@ -296,7 +319,7 @@ public class AuthService implements GoogleApiClient.ConnectionCallbacks, GoogleA
         this.serverUrl = serverUrl;
         this.serverPlayerId = playerId;
 
-        Executors.newSingleThreadExecutor().execute(new AuthRunner(this, true));
+        Executors.newSingleThreadExecutor().execute(new AuthRunner(this));
     }
 
     public void onPause() {
