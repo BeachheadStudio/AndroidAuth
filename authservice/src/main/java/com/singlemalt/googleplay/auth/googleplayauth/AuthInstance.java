@@ -64,6 +64,7 @@ public class AuthInstance {
 
         this.clientId = clientId;
         this.serverUrl = serverUrl;
+        this.serverPlayerId = playerId;
         this.loginStatus = Status.Working;
         this.oauthStatus = Status.Working;
         this.serverAuthStatus = Status.Working;
@@ -87,13 +88,19 @@ public class AuthInstance {
         Log.d(TAG, "onResume");
     }
 
-    public void onCancel(Activity activity) {
+    public void onCancel(final Activity activity) {
         Log.d(TAG, "onCancel");
         loginStatus = Status.Cancel;
         oauthStatus = Status.Cancel;
 
         Executors.newSingleThreadExecutor().execute(new ServerAuthRunner());
         checkStatus();
+        activity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                activity.startActivity(UnityPlayer.currentActivity.getIntent());
+            }
+        });
         activity.finish();
     }
 
@@ -116,6 +123,16 @@ public class AuthInstance {
         authParams.put("token", oauthToken);
 
         return new Gson().toJson(authParams);
+    }
+
+    public void startOauth() {
+        Log.d(AuthInstance.TAG, "startOauth");
+
+        String scope = String.format("audience:server:client_id:%s",  clientId);
+        Log.d(AuthInstance.TAG, "Scope: " + scope);
+
+        new GetOAuthTokenTask(UnityPlayer.currentActivity, accountName, scope)
+                .execute();
     }
 
     public void checkStatus() {
@@ -176,12 +193,13 @@ public class AuthInstance {
     }
 
     public void setPlayerId(String playerId) {
-        if(getPlayerId() != null) {
-            if(!getPlayerId().equals(playerId)) {
+        if(this.playerId != null) {
+            if(!this.playerId.equals(playerId)) {
+                Log.d(TAG, "New playerId found: " +playerId);
                 UnityPlayer.UnitySendMessage("AuthGameObject", "PlayerChange", "true");
             }
         }
-        setPlayerId(playerId);
+        this.playerId = playerId;
     }
 
     public String getPlayerName() {

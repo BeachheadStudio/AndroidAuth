@@ -14,8 +14,8 @@ import com.google.android.gms.games.Games;
 import com.google.android.gms.games.Player;
 import com.singlemalt.googleplay.auth.googleplayauth.runners.ServerAuthRunner;
 import com.singlemalt.googleplay.auth.googleplayauth.tasks.AuthTask;
-import com.singlemalt.googleplay.auth.googleplayauth.tasks.GetOAuthTokenTask;
 import com.google.android.gms.common.ConnectionResult;
+import com.unity3d.player.UnityPlayer;
 
 import java.util.concurrent.Executors;
 
@@ -72,18 +72,25 @@ public class AuthServiceActivity extends Activity implements
 
         AuthInstance.getInstance().setAccountName(
                 Games.getCurrentAccountName(AuthInstance.getInstance().getGoogleApiClient()));
+
         Player player = Games.Players.getCurrentPlayer(AuthInstance.getInstance().getGoogleApiClient());
+
+        Log.d(AuthInstance.TAG, "playerId: "+player.getPlayerId());
+        Log.d(AuthInstance.TAG, "playerName: "+player.getDisplayName());
 
         AuthInstance.getInstance().setPlayerId(player.getPlayerId());
         AuthInstance.getInstance().setPlayerName(player.getDisplayName());
-
-        String scope = String.format("audience:server:client_id:%s", AuthInstance.getInstance().getClientId());
-        Log.d(AuthInstance.TAG, "Scope: " + scope);
-
-        new GetOAuthTokenTask(this, AuthInstance.getInstance().getAccountName(), scope).execute();
-
+        AuthInstance.getInstance().startOauth();
         AuthInstance.getInstance().setLoginStatus(AuthInstance.Status.Success);
         AuthInstance.getInstance().checkStatus();
+
+        this.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                startActivity(UnityPlayer.currentActivity.getIntent());
+            }
+        });
+
         this.finish();
     }
 
@@ -129,17 +136,26 @@ public class AuthServiceActivity extends Activity implements
         if(requestCode == REQUEST_RESOLVE_ERROR) {
             resolvingError = false;
             if(resultCode == RESULT_OK) {
+                Log.d(AuthInstance.TAG, "onActivityResult is ok");
                 if (!AuthInstance.getInstance().getGoogleApiClient().isConnecting() &&
                         !AuthInstance.getInstance().getGoogleApiClient().isConnected()) {
                     AuthInstance.getInstance().getGoogleApiClient().connect();
                 }
             } else {
                 // player cancelled login
+                Log.d(AuthInstance.TAG, "player cancelled login");
                 AuthInstance.getInstance().setLoginStatus(AuthInstance.Status.Cancel);
                 AuthInstance.getInstance().setOauthStatus(AuthInstance.Status.Cancel);
 
                 Executors.newSingleThreadExecutor().execute(new ServerAuthRunner());
                 AuthInstance.getInstance().checkStatus();
+                this.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        startActivity(UnityPlayer.currentActivity.getIntent());
+                    }
+                });
+
                 this.finish();
             }
         }
