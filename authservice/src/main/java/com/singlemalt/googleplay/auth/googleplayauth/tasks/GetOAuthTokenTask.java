@@ -13,34 +13,30 @@ import com.google.android.gms.auth.GoogleAuthUtil;
 import com.google.android.gms.auth.GooglePlayServicesAvailabilityException;
 import com.google.android.gms.auth.UserRecoverableAuthException;
 import com.google.android.gms.common.GoogleApiAvailability;
-import com.google.android.gms.common.GooglePlayServicesUtil;
-import com.singlemalt.googleplay.auth.googleplayauth.AuthService;
+import com.singlemalt.googleplay.auth.googleplayauth.AuthInstance;
+import com.singlemalt.googleplay.auth.googleplayauth.AuthServiceActivity;
 
 import java.io.IOException;
 
 /**
- * Created by kmiller on 3/29/16.
+ * Created by singlemalt on 3/29/16.
  */
 public class GetOAuthTokenTask extends AsyncTask<String, Void, String> {
-    private static final String TAG = GetOAuthTokenTask.class.getSimpleName();
-
-    private AuthService authService;
     private Activity activity;
     private String scope;
     private String email;
 
-    public GetOAuthTokenTask(AuthService authService, Activity activity, String name, String scope) {
-        this.activity = activity;
+    public GetOAuthTokenTask(Activity activity, String name, String scope) {
         this.scope = scope;
         this.email = name;
-        this.authService = authService;
+        this.activity = activity;
     }
 
     final DialogInterface.OnCancelListener listener = new DialogInterface.OnCancelListener() {
         @Override
         public void onCancel(DialogInterface dialogInterface) {
-            Log.w(TAG, "OnCancelListener cancelled");
-            authService.onCancel(activity);
+            Log.w(AuthInstance.TAG, "OnCancelListener cancelled");
+            AuthInstance.getInstance().onCancel(activity);
         }
     };
 
@@ -51,15 +47,15 @@ public class GetOAuthTokenTask extends AsyncTask<String, Void, String> {
     @Override
     protected String doInBackground(String... params) {
         try {
-            Log.d(TAG, "doInBackground getting token");
+            Log.d(AuthInstance.TAG, "doInBackground getting token");
             String token = fetchToken();
             if (token != null) {
-                Log.d(TAG, "doInBackground setting token");
-                authService.setOauthToken(token);
+                Log.d(AuthInstance.TAG, "doInBackground setting token");
+                AuthInstance.getInstance().setOauthToken(token);
             }
         } catch (IOException e) {
-            Log.e(TAG, "doInBackground exception", e);
-            authService.setOauthToken(null);
+            Log.e(AuthInstance.TAG, "doInBackground exception", e);
+            AuthInstance.getInstance().setOauthToken(null);
         }
         return null;
     }
@@ -70,33 +66,33 @@ public class GetOAuthTokenTask extends AsyncTask<String, Void, String> {
      */
     public String fetchToken() throws IOException {
         try {
-            Log.d(TAG, "fetchToken getting token");
+            Log.d(AuthInstance.TAG, "fetchToken getting token");
 
             Account account = new Account(email, GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE);
             return GoogleAuthUtil.getToken(activity.getApplicationContext(), account, scope);
 
         } catch (final UserRecoverableAuthException e) {
-            Log.d(TAG, "fetchToken exception", e);
+            Log.d(AuthInstance.TAG, "fetchToken exception", e);
 
             activity.runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
                     if (e instanceof GooglePlayServicesAvailabilityException) {
-                        int statusCode = ((GooglePlayServicesAvailabilityException)e)
+                        int statusCode = ((GooglePlayServicesAvailabilityException) e)
                                 .getConnectionStatusCode();
 
                         Dialog dialog = GoogleApiAvailability.getInstance()
-                                .getErrorDialog(activity, statusCode, AuthService.REQUEST_RESOLVE_ERROR, listener);
+                                .getErrorDialog(activity, statusCode, AuthServiceActivity.REQUEST_RESOLVE_ERROR, listener);
 
                         dialog.show();
                     } else {
                         Intent intent = e.getIntent();
-                        activity.startActivityForResult(intent, AuthService.REQUEST_RESOLVE_ERROR);
+                        activity.startActivityForResult(intent, AuthServiceActivity.REQUEST_RESOLVE_ERROR);
                     }
                 }
             });
         } catch (GoogleAuthException fatalException) {
-            Log.e(TAG, "fatalException thrown", fatalException);
+            Log.e(AuthInstance.TAG, "fatalException thrown", fatalException);
             throw new RuntimeException();
         }
         return null;
