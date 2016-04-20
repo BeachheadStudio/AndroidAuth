@@ -94,14 +94,6 @@ task makeUnityPlugin(dependsOn: ':authservice:build') {
             into 'Assets/Plugins/Android/GooglePlay/libs'
         }
 
-        copy {
-            from('authservice/libs') {
-                include '**/*.jar'
-                exclude '**/classes.jar'
-            }
-            into 'Assets/Plugins/Android/GooglePlay/libs'
-        }
-
         println 'Done'
     }
 }
